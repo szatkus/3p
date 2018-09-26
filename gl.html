@@ -1,0 +1,90 @@
+<style>
+* {
+    margin: 0;
+}
+</style>
+
+<canvas id="output" width="800" height="600"></canvas>
+
+<script>
+    let canvas = document.getElementById('output')
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+    let gl = canvas.getContext('webgl')
+    let vertexShaderCode = `
+    attribute vec3 position;
+    uniform vec3 translation;
+    varying vec4 originalPosition;
+    void main(void) {
+        originalPosition = vec4(position, 1.0);
+        float z = position[2] + translation[2];
+        float x = (position[0] + translation[0]) * pow(0.5, z);
+        float y = (position[1] + translation[1]) * pow(0.5, z);
+        gl_Position = vec4(x, y, 0.0, 1.0);
+    }
+    `
+    let vertexShader = gl.createShader(gl.VERTEX_SHADER)
+    gl.shaderSource(vertexShader, vertexShaderCode)
+    gl.compileShader(vertexShader)
+    console.debug(gl.getShaderInfoLog(vertexShader))
+    let fragmentShaderCode = `
+    precision mediump float;
+    varying vec4 originalPosition;
+    void main(void) {
+        gl_FragColor = originalPosition;
+    }
+    `
+    let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+    gl.shaderSource(fragmentShader, fragmentShaderCode)
+    gl.compileShader(fragmentShader)
+    console.debug(gl.getShaderInfoLog(fragmentShader))
+    let shaderProgram = gl.createProgram()
+    gl.attachShader(shaderProgram, vertexShader)
+    gl.attachShader(shaderProgram, fragmentShader)
+    gl.linkProgram(shaderProgram)
+    gl.useProgram(shaderProgram);
+
+    let vertexPositionAttribute = gl.getAttribLocation(shaderProgram, 'position')
+    gl.enableVertexAttribArray(vertexPositionAttribute)
+    let translationAttribute = gl.getUniformLocation(shaderProgram, 'translation')
+    gl.enableVertexAttribArray(translationAttribute)
+
+    let triangleVertexPositionBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer)
+    let vertices = [0, -1, 2.0,  1, 1, 1.0,  1, -1, 1.0,  1, 1, 1,  0, 1, 2,  0, -1, 2];
+    let points = 0
+    let lastHorizontalAngle = - Math.PI / points
+    for (let i = 0; i < points; i++) {
+        let horizontalAngle = i * Math.PI / points
+        let rightX = Math.cos(horizontalAngle)
+        let rightY = Math.sin(horizontalAngle)
+        let leftX = Math.cos(lastHorizontalAngle)
+        let leftY = Math.sin(lastHorizontalAngle)
+        for (let j = 0; j <= points; j++) {
+            if (j % 4 === 1) {
+                let bottomZ = Math.cos((j - 1) * Math.PI)
+                verticies.push(rightX)
+                verticies.push(rightY)
+                verticies.push(bottomZ)
+                verticies.push(leftX)
+                verticies.push(leftY)
+                verticies.push(bottomZ)
+                let middleAngle = (lastHorizontalAngle + horizontalAngle) / 2
+                let upperX = Math.cos(middleAngle)
+            }
+        }
+        lastHorizontalAngle = horizontalAngle
+    }
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW)
+    gl.enable(gl.DEPTH_TEST);
+
+    gl.clearColor(0, 0, 0, 1)
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform3fv(translationAttribute, [0, 0, 3])
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer)
+    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0)
+    gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+</script>
